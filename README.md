@@ -45,3 +45,34 @@ The platform is divided into three core modules to ensure granular access contro
    ```bash
    git clone [https://github.com/yourusername/quiz.git](https://github.com/yourusername/quiz.git)
    cd quiz
+   
+2. **Dependencies:**
+   Run the following command to pull all required packages:
+   ```bash
+   flutter pub get
+   
+3. Firebase Configuration:
+   * Create a new project in the Firebase Console.
+   * Initialize Firebase in the project:
+    ```bash
+   flutterfire configure
+* Ensure Firestore and Authentication services are enabled in your Firebase project console.
+
+4. Launch:
+   Connect your emulator or device and run:
+   ```bash
+   flutter run
+
+## Roadmap:
+   We are continuously evolving Astra to better serve the academic community:
+   [ ] **Phase 1: Analytics Dashboard** - Implement visual grade distributions for Admins.
+   [ ] **Phase 2: Proctored Mode** - Integrate detection for tab-switching/app-minimizing during active quizzes.
+   [ ] **Phase 3: Export Features** - Add functionality to export quiz results as PDF/CSV reports.
+   [ ] **Phase 4: Dark Mode** - Refine the luxury-tech aesthetic with a dedicated system-wide dark theme.
+
+## License 
+This project is licensed under the MIT License. You are free to use, modify, and distribute this software for educational or commercial purposes.
+See the LICENSE file for more details.
+
+
+   
