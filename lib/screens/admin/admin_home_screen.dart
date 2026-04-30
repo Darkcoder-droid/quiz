@@ -268,9 +268,8 @@ class ManageClassesTab extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildInfoRow(Icons.person, 'Faculty', data['assignedFacultyName'] ?? 'Not Assigned'),
-                const SizedBox(height: 8),
                 FutureBuilder<QuerySnapshot>(
                   future: FirebaseFirestore.instance.collection('users').where('classId', isEqualTo: classId).get(),
                   builder: (context, snapshot) {
@@ -279,13 +278,17 @@ class ManageClassesTab extends StatelessWidget {
                   },
                 ),
                 const SizedBox(height: 16),
+                const Text('Subjects', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                const SizedBox(height: 8),
+                _buildSubjectsList(context, classId, data),
+                const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     TextButton.icon(
-                      onPressed: () => _showAssignFacultyDialog(context, classId),
-                      icon: const Icon(Icons.edit_note),
-                      label: const Text('Assign Faculty'),
+                      onPressed: () => _showAddSubjectDialog(context, classId, data),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add Subject'),
                     ),
                     const SizedBox(width: 8),
                     IconButton(
@@ -337,6 +340,8 @@ class ManageClassesTab extends StatelessWidget {
                   'name': nameController.text.trim(),
                   'section': sectionController.text.trim(),
                   'createdAt': FieldValue.serverTimestamp(),
+                  'subjects': [],
+                  'assignedFacultyUids': [],
                 });
                 if (context.mounted) Navigator.pop(context);
               }
@@ -348,32 +353,144 @@ class ManageClassesTab extends StatelessWidget {
     );
   }
 
-  void _showAssignFacultyDialog(BuildContext context, String classId) {
+  Widget _buildSubjectsList(BuildContext context, String classId, Map<String, dynamic> data) {
+    List<dynamic> subjects = data['subjects'] ?? [];
+    if (subjects.isEmpty) {
+      return const Text('No subjects added yet.', style: TextStyle(color: Colors.grey));
+    }
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: subjects.length,
+      itemBuilder: (context, index) {
+        final subject = subjects[index] as Map<String, dynamic>;
+        final String subName = subject['name'] ?? 'Unnamed Subject';
+        final List<dynamic> faculties = subject['faculties'] ?? [];
+        return Card(
+          color: Colors.grey.shade50,
+          margin: const EdgeInsets.only(bottom: 8),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            side: BorderSide(color: Colors.grey.shade300, width: 1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(subName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    IconButton(
+                      icon: const Icon(Icons.person_add_alt_1, size: 20),
+                      onPressed: () => _showAssignFacultyDialog(context, classId, data, index),
+                      tooltip: 'Assign Faculty',
+                      color: AppTheme.primaryColor,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                if (faculties.isEmpty)
+                  const Text('No faculties assigned', style: TextStyle(color: Colors.grey, fontSize: 12))
+                else
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: faculties.map((f) {
+                      return Chip(
+                        label: Text(f['name'] ?? ''),
+                        deleteIcon: const Icon(Icons.close, size: 16),
+                        onDeleted: () => _removeFacultyFromSubject(classId, data, index, f['uid']),
+                        padding: EdgeInsets.zero,
+                        labelStyle: const TextStyle(fontSize: 12),
+                        backgroundColor: Colors.white,
+                        side: BorderSide(color: Colors.grey.shade300),
+                      );
+                    }).toList(),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showAddSubjectDialog(BuildContext context, String classId, Map<String, dynamic> data) {
+    final subController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Subject'),
+        content: TextField(controller: subController, decoration: const InputDecoration(hintText: 'Subject Name')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () {
+              if (subController.text.isNotEmpty) {
+                List<dynamic> subjects = List.from(data['subjects'] ?? []);
+                subjects.add({'name': subController.text.trim(), 'faculties': []});
+                FirebaseFirestore.instance.collection('classes').doc(classId).update({'subjects': subjects});
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Add', style: TextStyle(color: AppTheme.primaryColor)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAssignFacultyDialog(BuildContext context, String classId, Map<String, dynamic> data, int subjectIndex) {
     showDialog(
       context: context,
       builder: (context) => StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance.collection('users').where('role', isEqualTo: 'Faculty').where('isApproved', isEqualTo: true).snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-          final faculty = snapshot.data!.docs;
+          final facultyDocs = snapshot.data!.docs;
+          
           return AlertDialog(
             title: const Text('Assign Faculty'),
             content: SizedBox(
               width: double.maxFinite,
               child: ListView.builder(
                 shrinkWrap: true,
-                itemCount: faculty.length,
+                itemCount: facultyDocs.length,
                 itemBuilder: (context, index) {
-                  final data = faculty[index].data() as Map<String, dynamic>;
+                  final fData = facultyDocs[index].data() as Map<String, dynamic>;
+                  final fUid = facultyDocs[index].id;
+                  
+                  // Check if already assigned
+                  List<dynamic> subjects = List.from(data['subjects'] ?? []);
+                  List<dynamic> assignedFaculties = List.from(subjects[subjectIndex]['faculties'] ?? []);
+                  bool isAssigned = assignedFaculties.any((f) => f['uid'] == fUid);
+                  
                   return ListTile(
-                    title: Text(data['name'] ?? ''),
-                    subtitle: Text(data['email'] ?? ''),
+                    title: Text(fData['name'] ?? ''),
+                    subtitle: Text(fData['email'] ?? ''),
+                    trailing: isAssigned ? const Icon(Icons.check_circle, color: AppTheme.successColor) : null,
                     onTap: () async {
-                      await FirebaseFirestore.instance.collection('classes').doc(classId).update({
-                        'assignedFacultyUid': faculty[index].id,
-                        'assignedFacultyName': data['name'],
-                      });
-                      if (context.mounted) Navigator.pop(context);
+                      if (!isAssigned) {
+                        assignedFaculties.add({'uid': fUid, 'name': fData['name']});
+                        subjects[subjectIndex]['faculties'] = assignedFaculties;
+                        
+                        // Update assignedFacultyUids
+                        List<dynamic> assignedFacultyUids = List.from(data['assignedFacultyUids'] ?? []);
+                        if (!assignedFacultyUids.contains(fUid)) {
+                          assignedFacultyUids.add(fUid);
+                        }
+                        
+                        await FirebaseFirestore.instance.collection('classes').doc(classId).update({
+                          'subjects': subjects,
+                          'assignedFacultyUids': assignedFacultyUids,
+                        });
+                        if (context.mounted) Navigator.pop(context);
+                      }
                     },
                   );
                 },
@@ -383,6 +500,33 @@ class ManageClassesTab extends StatelessWidget {
         },
       ),
     );
+  }
+
+  Future<void> _removeFacultyFromSubject(String classId, Map<String, dynamic> data, int subjectIndex, String uidToRemove) async {
+    List<dynamic> subjects = List.from(data['subjects'] ?? []);
+    List<dynamic> assignedFaculties = List.from(subjects[subjectIndex]['faculties'] ?? []);
+    
+    assignedFaculties.removeWhere((f) => f['uid'] == uidToRemove);
+    subjects[subjectIndex]['faculties'] = assignedFaculties;
+    
+    // Check if faculty is still assigned to ANY other subject in this class
+    bool stillAssigned = false;
+    for (var sub in subjects) {
+      if ((sub['faculties'] as List<dynamic>).any((f) => f['uid'] == uidToRemove)) {
+        stillAssigned = true;
+        break;
+      }
+    }
+    
+    List<dynamic> assignedFacultyUids = List.from(data['assignedFacultyUids'] ?? []);
+    if (!stillAssigned) {
+      assignedFacultyUids.remove(uidToRemove);
+    }
+    
+    await FirebaseFirestore.instance.collection('classes').doc(classId).update({
+      'subjects': subjects,
+      'assignedFacultyUids': assignedFacultyUids,
+    });
   }
 
   void _confirmDeleteClass(BuildContext context, String classId) {

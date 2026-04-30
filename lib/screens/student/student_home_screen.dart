@@ -263,12 +263,26 @@ class _StudentQuizzesTabState extends State<StudentQuizzesTab> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
-                  child: Text(
-                    data['title'] ?? '',
-                    style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        data['title'] ?? '',
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      if (data['subjectName'] != null && data['subjectName'].toString().isNotEmpty)
+                        Text(
+                          data['subjectName'],
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: AppTheme.primaryColor,
+                          ),
+                        ),
+                    ],
                   ),
                 ),
                 Container(
@@ -437,10 +451,23 @@ class StudentResultsTab extends StatelessWidget {
                   data['quizTitle'] ?? 'Quiz',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-                subtitle: Text(
-                  attemptedAt != null
-                      ? DateFormat('MMM dd, yyyy').format(attemptedAt)
-                      : '',
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (data['subjectName'] != null && data['subjectName'].toString().isNotEmpty)
+                      Text(
+                        data['subjectName'],
+                        style: const TextStyle(
+                          color: AppTheme.primaryColor,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    Text(
+                      attemptedAt != null
+                          ? DateFormat('MMM dd, yyyy').format(attemptedAt)
+                          : '',
+                    ),
+                  ],
                 ),
                 trailing: Column(
                   mainAxisAlignment: MainAxisAlignment.center,

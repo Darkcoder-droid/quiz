@@ -64,6 +64,19 @@ class QuizResultReviewScreen extends StatelessWidget {
               color: AppTheme.primaryColor,
             ),
           ),
+          if (attemptData['subjectName'] != null && attemptData['subjectName'].toString().isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                attemptData['subjectName'],
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+            ),
           const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,

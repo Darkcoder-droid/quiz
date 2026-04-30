@@ -8,8 +8,9 @@ import '../../utils/app_theme.dart';
 class CreateQuizScreen extends StatefulWidget {
   final String classId;
   final String className;
+  final List<String> subjects;
 
-  const CreateQuizScreen({super.key, required this.classId, required this.className});
+  const CreateQuizScreen({super.key, required this.classId, required this.className, required this.subjects});
 
   @override
   State<CreateQuizScreen> createState() => _CreateQuizScreenState();
@@ -40,6 +41,15 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
   DateTime? _scheduledAt;
   final List<Question> _questions = [];
   bool _isPublishing = false;
+  String? _selectedSubject;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.subjects.isNotEmpty) {
+      _selectedSubject = widget.subjects.first;
+    }
+  }
 
   @override
   void dispose() {
@@ -174,6 +184,7 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
         'title': _titleController.text.trim(),
         'classId': widget.classId,
         'className': widget.className,
+        'subjectName': _selectedSubject,
         'scheduledAt': Timestamp.fromDate(_scheduledAt!),
         'duration': int.parse(_durationController.text),
         'createdByUid': user?.uid,
@@ -206,7 +217,15 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
                 'Class: ${widget.className}',
                 style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.primaryColor),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: _selectedSubject,
+                decoration: const InputDecoration(hintText: 'Select Subject', prefixIcon: Icon(Icons.menu_book)),
+                items: widget.subjects.map((sub) => DropdownMenuItem(value: sub, child: Text(sub))).toList(),
+                onChanged: (v) => setState(() => _selectedSubject = v),
+                validator: (v) => v == null ? 'Select a subject' : null,
+              ),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _titleController,
                 decoration: const InputDecoration(hintText: 'Quiz Title', prefixIcon: Icon(Icons.title)),

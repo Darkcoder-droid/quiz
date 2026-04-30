@@ -90,6 +90,7 @@ class _AttemptQuizScreenState extends State<AttemptQuizScreen> {
       await FirebaseFirestore.instance.collection('attempts').add({
         'quizId': widget.quizId,
         'quizTitle': widget.quizData['title'],
+        'subjectName': widget.quizData['subjectName'],
         'studentUid': user?.uid,
         'studentName': userData?['name'] ?? 'Unknown',
         'score': score,
@@ -145,7 +146,17 @@ class _AttemptQuizScreenState extends State<AttemptQuizScreen> {
       child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
-          title: Text(widget.quizData['title'] ?? 'Quiz'),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(widget.quizData['title'] ?? 'Quiz', style: const TextStyle(fontSize: 18)),
+              if (widget.quizData['subjectName'] != null && widget.quizData['subjectName'].toString().isNotEmpty)
+                Text(
+                  widget.quizData['subjectName'],
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                ),
+            ],
+          ),
           actions: [
             Container(
               margin: const EdgeInsets.only(right: 16),
