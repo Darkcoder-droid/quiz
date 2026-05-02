@@ -76,6 +76,14 @@ class MyClassesTab extends StatelessWidget {
         final allDocs = snapshot.data?.docs ?? [];
         final docs = allDocs.where((d) {
           final data = d.data() as Map<String, dynamic>;
+          
+          // Check the new assignedFacultyUids array
+          if (data['assignedFacultyUids'] != null) {
+            final List<dynamic> uids = data['assignedFacultyUids'];
+            if (uids.contains(uid)) return true;
+          }
+          
+          // Legacy support
           if (data['assignedFacultyUid'] == uid) return true;
           if (data['assignedFaculty'] is Map) {
             return data['assignedFaculty']['id'] == uid;
@@ -182,9 +190,17 @@ class QuizzesTab extends StatelessWidget {
             final data = d.data() as Map<String, dynamic>;
             final title = data['title'] ?? '';
             final className = data['className'] ?? '';
+            final subjectName = data['subjectName'];
             final section = data['section'] ?? '';
             final startTs = data['startDateTime'] as Timestamp?;
             final endTs = data['endDateTime'] as Timestamp?;
+            
+            String subtitle = 'Class: $className';
+            if (section.isNotEmpty) subtitle += ' - Section $section';
+            if (subjectName != null && subjectName.isNotEmpty) {
+              subtitle += '\nSubject: $subjectName';
+            }
+
             return Card(
               margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               child: Padding(
@@ -200,7 +216,7 @@ class QuizzesTab extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text('Class: $className - Section $section'),
+                    Text(subtitle),
                     const SizedBox(height: 2),
                     Text('Start: ${_formatDate(startTs)}'),
                     Text('End: ${_formatDate(endTs)}'),
@@ -216,6 +232,7 @@ class QuizzesTab extends StatelessWidget {
                               builder: (_) => QuizResultsScreen(
                                 quizId: d.id,
                                 quizTitle: title,
+                                subjectName: subjectName,
                                 totalQuestions: totalQuestions,
                               ),
                             ),

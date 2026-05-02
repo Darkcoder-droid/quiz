@@ -1,15 +1,17 @@
-﻿import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 class QuizResultsScreen extends StatelessWidget {
   final String quizId;
   final String quizTitle;
+  final String? subjectName;
   final int totalQuestions;
 
   const QuizResultsScreen({
     super.key,
     required this.quizId,
     required this.quizTitle,
+    this.subjectName,
     required this.totalQuestions,
   });
 
@@ -35,7 +37,17 @@ class QuizResultsScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(quizTitle),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(quizTitle, style: const TextStyle(fontSize: 18)),
+            if (subjectName != null && subjectName!.isNotEmpty)
+              Text(
+                subjectName!,
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+              ),
+          ],
+        ),
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: attemptsRef.where('quizId', isEqualTo: quizId).snapshots(),

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import 'create_quiz_screen.dart';
@@ -12,7 +13,17 @@ class ClassDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final data = classDoc.data() as Map<String, dynamic>;
     final className = data['className'] ?? '';
-    // we no longer need the section string for student lookup
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    
+    List<String> facultySubjects = [];
+    if (uid != null && data['subjects'] != null) {
+      for (var sub in data['subjects']) {
+        final faculties = sub['faculties'] as List<dynamic>? ?? [];
+        if (faculties.any((f) => f['uid'] == uid)) {
+          facultySubjects.add(sub['name'] ?? 'Unnamed');
+        }
+      }
+    }
 
     final usersRef = FirebaseFirestore.instance.collection('users');
 
@@ -38,7 +49,7 @@ class ClassDetailScreen extends StatelessWidget {
             itemBuilder: (context, index) {
               final d = docs[index];
               final student = d.data() as Map<String, dynamic>;
-              final fullName = student['fullName'] ?? '';
+              final fullName = student['fullName'] ?? student['name'] ?? '';
               final roll = student['rollNumber'] ?? '';
               final email = student['email'] ?? '';
               return Card(
@@ -54,10 +65,15 @@ class ClassDetailScreen extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
+          if (facultySubjects.isEmpty) {
+             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('You are not assigned to any subjects in this class.')));
+             return;
+          }
           Navigator.of(context).push(MaterialPageRoute(
             builder: (_) => CreateQuizScreen(
               classId: classDoc.id,
               className: className,
+              subjects: facultySubjects,
             ),
           ));
         },
