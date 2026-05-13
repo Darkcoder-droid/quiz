@@ -11,12 +11,34 @@ import 'screens/faculty/faculty_home_screen.dart';
 import 'screens/student/student_home_screen.dart';
 import 'screens/splash_screen.dart';
 import 'utils/app_theme.dart';
-import 'screens/student/attempt_quiz_screen.dart';
-import 'screens/student/quiz_result_review_screen.dart';
+
+// Global theme notifier for real-time light/dark mode toggling
+final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  
+  // DB Cleanup and Debug (Temp)
+  try {
+    final attempts = await FirebaseFirestore.instance.collection('attempts').get();
+    for (var doc in attempts.docs) {
+      final data = doc.data();
+      if (data['score'] != data['totalQuestions'] || data['totalQuestions'] == 0) {
+        await doc.reference.delete();
+        print('Deleted attempt: ${doc.id}');
+      }
+    }
+    print('Attempts cleanup done.');
+
+    final classes = await FirebaseFirestore.instance.collection('classes').get();
+    for (var doc in classes.docs) {
+      print('Class: ${doc.id} -> ${doc.data()}');
+    }
+  } catch (e) {
+    print('Debug script error: $e');
+  }
+
   runApp(const MyApp());
 }
 
@@ -25,20 +47,27 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'College Quiz App',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      initialRoute: '/',
-      routes: {
-        '/': (context) => const SplashScreen(),
-        '/auth_wrapper': (context) => const AuthWrapper(),
-        '/login': (context) => const LoginScreen(),
-        '/signup': (context) => const SignupScreen(),
-        '/pending_approval': (context) => const PendingApprovalScreen(),
-        '/admin_home': (context) => const AdminHomeScreen(),
-        '/faculty_home': (context) => const FacultyHomeScreen(),
-        '/student_home': (context) => const StudentHomeScreen(),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeNotifier,
+      builder: (_, ThemeMode currentMode, __) {
+        return MaterialApp(
+          title: 'Astra Platform',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          themeMode: currentMode,
+          initialRoute: '/',
+          routes: {
+            '/': (context) => const SplashScreen(),
+            '/auth_wrapper': (context) => const AuthWrapper(),
+            '/login': (context) => const LoginScreen(),
+            '/signup': (context) => const SignupScreen(),
+            '/pending_approval': (context) => const PendingApprovalScreen(),
+            '/admin_home': (context) => const AdminHomeScreen(),
+            '/faculty_home': (context) => const FacultyHomeScreen(),
+            '/student_home': (context) => const StudentHomeScreen(),
+          },
+        );
       },
     );
   }
@@ -59,7 +88,6 @@ class _AuthWrapperState extends State<AuthWrapper> {
   }
 
   Future<void> _checkInitialAuth() async {
-    // Give Firebase a moment to initialize the current user state
     await Future.delayed(Duration.zero);
 
     final user = FirebaseAuth.instance.currentUser;

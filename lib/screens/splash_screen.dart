@@ -1,6 +1,16 @@
-﻿import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../utils/app_theme.dart';
+import 'package:flutter/material.dart';
+import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'auth/login_screen.dart';
+import 'student/student_home_screen.dart';
+import 'faculty/faculty_home_screen.dart';
+import 'admin/admin_home_screen.dart';
+import 'auth/pending_approval_screen.dart';
+import '../utils/royal_colors.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'onboarding_screen.dart';
+import '../../widgets/astra_logo.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -11,8 +21,8 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
+  late Animation<double> _scaleAnimation;
 
   @override
   void initState() {
@@ -22,22 +32,61 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       duration: const Duration(milliseconds: 1500),
     );
 
-    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: const Interval(0.0, 0.5, curve: Curves.easeIn)),
     );
 
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: const Interval(0.0, 0.5, curve: Curves.easeOutBack)),
     );
 
     _controller.forward();
+    _navigateNext();
+  }
 
-    // Navigate to AuthWrapper after delay
-    Future.delayed(const Duration(seconds: 3), () {
+  Future<void> _navigateNext() async {
+    await Future.delayed(const Duration(seconds: 3));
+    if (!mounted) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeenOnboarding = prefs.getBool('has_seen_onboarding') ?? false;
+
+    if (!hasSeenOnboarding) {
       if (mounted) {
-        Navigator.pushReplacementNamed(context, '/auth_wrapper');
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const OnboardingScreen()));
       }
-    });
+      return;
+    }
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      if (!doc.exists) {
+        if (!mounted) return;
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
+        return;
+      }
+      
+      final data = doc.data() as Map<String, dynamic>;
+      final isApproved = data['isApproved'] ?? false;
+      final role = data['role'] ?? 'Student';
+      
+      if (!mounted) return;
+
+      if (!isApproved && role != 'Student') {
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const PendingApprovalScreen()));
+      } else {
+        if (role == 'Admin') {
+          Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const AdminHomeScreen()));
+        } else if (role == 'Faculty') {
+          Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const FacultyHomeScreen()));
+        } else {
+          Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const StudentHomeScreen()));
+        }
+      }
+    } else {
+      Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
+    }
   }
 
   @override
@@ -49,58 +98,69 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFF0B132B), // Astra Dark Navy
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ScaleTransition(
-              scale: _scaleAnimation,
-              child: FadeTransition(
-                opacity: _fadeAnimation,
-                child: Container(
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: ScaleTransition(
+            scale: _scaleAnimation,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
+                    color: Colors.white.withOpacity(0.05),
+                    border: Border.all(color: RoyalColors.darkAccent.withOpacity(0.2), width: 1),
                   ),
-                  child: const Icon(
-                    Icons.quiz_rounded,
-                    size: 80,
-                    color: AppTheme.primaryColor,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      const AstraLogo(size: 80),
+                      // Subtle glow
+                      Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: RoyalColors.darkAccent.withOpacity(0.2),
+                              blurRadius: 40,
+                              spreadRadius: 10,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            FadeTransition(
-              opacity: _fadeAnimation,
-              child: Column(
-                children: [
-                  Text(
-                    'QUIZ PRO',
-                    style: GoogleFonts.poppins(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.primaryColor,
-                      letterSpacing: 2.0,
-                    ),
+                const SizedBox(height: 32),
+                const Text(
+                  'Astra',
+                  style: TextStyle(
+                    fontSize: 48,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: -1,
                   ),
-                  Text(
-                    'Enhance Your Learning',
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      color: Colors.grey.shade600,
-                      letterSpacing: 1.2,
-                    ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Elevate Your Academic Journey',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.white.withOpacity(0.6),
+                    letterSpacing: 1.5,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
-
